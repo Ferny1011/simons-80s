@@ -1,0 +1,34 @@
+# === BUILD & BINARIES ===
+/bin/
+/obj/
+/build/
+/debug/
+/release/
+*.exe
+*.dll
+*.o
+*.a
+
+# === CODE::BLOCKS FILES ===
+*.depend
+*.layout
+.cbp.
+.workspace.
+
+# === TEMPORARY / SYSTEM FILES ===
+.DS_Store
+Thumbs.db
+*.log
+
+# === BACKUPS ===
+*~
+*.bak
+
+# === SDL LIBRARIES (copias locales del runtime) ===
+/lib//bin/
+/lib//build/
+/lib//obj/
+/lib//include/test/
+
+# === VISUAL STUDIO CODE (por si lo usás también) ===
+.vscode/
