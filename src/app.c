@@ -25,12 +25,16 @@
  */
 
 #include "../include/app.h"
+#include "../include/renderer.h"
 #include <stdio.h>
 
 static TTF_Font* gUiFont = NULL; /*fuente de UI*/
 static SDL_Texture* gPauseTex = NULL;/*textura "PAUSA" */
 static SDL_Rect gPauseDst = {0, 0, 0, 0}; /*destino centrado*/
 
+
+static EqRenderer eqRendererState; /*Estructura del renderer(barras, layout,etc)*/
+static bool isEqInitialized = false; /*Se inicializa una sola vez en GAME*/
 
 /**
 *@brief Carga la fuente y prepara la textura "PAUSA"
@@ -264,7 +268,27 @@ void app_run(SDL_Renderer* renderer){
                 if(event.key.keysym.sym == SDLK_p)
                     app_togglePause(&app);
             }
+            if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
+                /*Actualiza dimensiones y recalcula layout del ecualizador si ya estaba inciado*/
+                if(isEqInitialized){
+                    SDL_GetRendererOutputSize(app.renderer, &eqRendererState.rendererWindowWidth, &eqRendererState.rendererWindowHeight);
+                    eq_layout(&eqRendererState);
+                }
+            }
 
+            /*si estamos en GAME y NO estamos en pausa*/
+            if(!app.isPaused && app.currentScene == SCENE_GAME){
+                if(event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT){
+                    int mouseX = event.button.x;
+                    int mouseY = event.button.y;
+                    if(isEqInitialized){
+                        int hitIndex = eq_detectHit(&eqRendererState, mouseX, mouseY);
+                        if(hitIndex >= 0){
+                            eq_triggerPulse(&eqRendererState, hitIndex);
+                        }
+                    }
+                }
+            }
 
             //Eventos de escena si no esta en pausa
             if(!app.isPaused && app.currentScene == SCENE_MENU)
@@ -340,15 +364,36 @@ static void render_menu(Application* app){
 }
 
 static void update_game(Application* app){
+    /*Inicializacion del ecualizador (solo la primera vez que entramos a GAME)*/
+    if(!isEqInitialized){
+        isEqInitialized = eq_init(app->renderer, &eqRendererState,4);
+        if(isEqInitialized){
+            /*Golpecito de presentacion en todas las barras*/
+            for(int barIndex = 0; barIndex < eqRendererState.totalBars; ++barIndex){
+                eq_triggerPulse(&eqRendererState, barIndex);
+            }
+        }
+    } else{
+        /*Anima: aplica decaimineto de altura y brillo en cada frame*/
+        eq_update(&eqRendererState);
+    }
+
+    /*Temporal de flujo (tras 2s salta a STATS)*/
     Uint32 elapsed = SDL_GetTicks() - app->sceneStartTime;
     if(elapsed > 2000)
         app_changeScene(app,SCENE_STATS);
 }
 
 static void render_game(Application* app){
+    /*Fondo del juego (paleta centralizada en app.h)*/
     SDL_SetRenderDrawColor(app->renderer,COLOR_GAME);
     SDL_RenderClear(app->renderer);
-    //TODO: Dibujar la botonera / ecualizador
+
+    /*Dibuja las barras si el renderer esta listo*/
+    if(isEqInitialized){
+        eq_render(&eqRendererState);
+    }
+
     SDL_RenderPresent(app->renderer);
 }
 
