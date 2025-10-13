@@ -25,6 +25,7 @@
 #define APP_H_INCLUDED
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 #include <stdbool.h>
 
 /**
@@ -56,6 +57,27 @@
 
 
 /**
+*@def COLOR_PAUSE_OVERLAY
+*@brief Color semitransparente usado para la superposicion de pausa
+*/
+#define COLOR_PAUSE_OVERLAY 0, 0, 0, 128
+
+
+/**
+*@def COLOR_PAUSE_TEXT
+*@brief Color del texto "PAUSA" sobre el overlay
+*/
+#define COLOR_PAUSE_TEXT 255, 128, 255, 255
+
+
+/**
+*@def FONT_UI_PATH
+*@brief Fuente principal para titulos
+*/
+#define FONT_UI_PATH "fnt/PressStart2P.ttf"
+
+
+/**
 *@enum Scene
 *@brief Representa las diferentes pantallas o escenas principales del programa
 */
@@ -79,8 +101,20 @@ typedef struct {
     SDL_Renderer* renderer; //Renderizado principal
     Scene currentScene; // Escena actual
     bool isRunning; // Control del bucle
+    bool isPaused; // Control de la pausa
+    Uint32 pauseStartTime; // Tiempo de inicio de la pausa (ms)
     Uint32 sceneStartTime; // Tiempo de inicio de la escena (ms)
 } Application;
+
+
+/**
+*@brief Alterna el estado de pausa global de la aplicacion
+*Si se pausa, guarda el tiempo de inicio
+*Si se reanuda, compensa sceneStartTime
+*@param app Puntero a la aplicacion
+*/
+
+void app_togglePause(Application* app);
 
 
 /**

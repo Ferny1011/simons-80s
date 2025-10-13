@@ -27,6 +27,61 @@
 #include "../include/app.h"
 #include <stdio.h>
 
+static TTF_Font* gUiFont = NULL; /*fuente de UI*/
+static SDL_Texture* gPauseTex = NULL;/*textura "PAUSA" */
+static SDL_Rect gPauseDst = {0, 0, 0, 0}; /*destino centrado*/
+
+
+/**
+*@brief Carga la fuente y prepara la textura "PAUSA"
+*@param app Puntero a la aplicacion principal
+*@return int 0 si OK, -1 si falla
+*/
+static int pause_ui_init(Application* app){
+    int windowWidth = 0, windowHeight = 0;
+    gUiFont = TTF_OpenFont(FONT_UI_PATH, 48);
+    if(!gUiFont){
+        fprintf(stderr, "[ERROR] TTF_OpenFont (%s): %s\n", FONT_UI_PATH, TTF_GetError());
+        return -1;
+    }
+    /*Renderiza el texto "PAUSA" en una superfice temporal*/
+    SDL_Color pauseTextColor = (SDL_Color){COLOR_PAUSE_TEXT};
+    SDL_Surface* pauseSurface = TTF_RenderUTF8_Blended(gUiFont,"PAUSA",pauseTextColor);
+    if(!pauseSurface){
+        fprintf(stderr,"[ERROR] TTF_RenderUTF8_Blended: %s\n", TTF_GetError());
+        return -1;
+    }
+    /* crea la textura a partir de la superfice renderizada*/
+    gPauseTex = SDL_CreateTextureFromSurface(app->renderer,pauseSurface);
+    gPauseDst.w = pauseSurface->w;
+    gPauseDst.h = pauseSurface->h;
+
+    SDL_FreeSurface(pauseSurface); //se libera superfice temporal
+
+    SDL_GetRendererOutputSize(app->renderer, &windowWidth, &windowHeight);
+    gPauseDst.x = (windowWidth - gPauseDst.w)/2;
+    gPauseDst.y = (windowHeight - gPauseDst.h)/2;
+
+    return(gPauseTex ? 0 : -1);
+}
+
+
+/**
+*@brief Libera los recursos de la UI de pausa.
+*/
+
+static void pause_ui_shutdown(){
+    if(gPauseTex){
+        SDL_DestroyTexture(gPauseTex);
+        gPauseTex = NULL;
+    }
+    if(gUiFont){
+        TTF_CloseFont(gUiFont);
+        gUiFont = NULL;
+    }
+}
+
+
 /**
 *@brief Actualiza la escena de la presentacion (Splash)
 *@param app Puntero a la aplicacion principal
@@ -105,7 +160,40 @@ Devuelve una cadena constante
 static const char* scene_name(Scene scene);
 
 
+/**
+*@brief Dibuja un velo semitransparente y el texto "PAUSA" centrado
+*@param app Puntero a la aplicacion
+*/
 
+static void render_pause_overlay(Application* app);
+
+
+
+
+static void render_pause_overlay(Application* app){
+    /*velo*/
+    SDL_SetRenderDrawBlendMode(app->renderer,SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(app->renderer,COLOR_PAUSE_OVERLAY);
+    SDL_Rect full = {0, 0, 0, 0};
+    SDL_GetRendererOutputSize(app->renderer,&full.w,&full.h);
+    SDL_RenderFillRect(app->renderer,&full);
+
+    /*texto "PAUSA" (si esta disponible)*/
+    if(gPauseTex){
+        SDL_Rect shadow = gPauseDst;
+        shadow.x +=2;
+        shadow.y +=2;
+        SDL_SetTextureAlphaMod(gPauseTex,80);
+        SDL_RenderCopy(app->renderer,gPauseTex, NULL, &shadow);
+
+        SDL_SetTextureAlphaMod(gPauseTex,255);
+        SDL_RenderCopy(app->renderer,gPauseTex,NULL, &gPauseDst);
+        }
+
+        SDL_SetRenderDrawBlendMode(app->renderer,SDL_BLENDMODE_NONE);
+
+    SDL_SetRenderDrawBlendMode(app->renderer, SDL_BLENDMODE_NONE);
+}
 
 
 
@@ -118,6 +206,19 @@ static const char* scene_name(Scene scene){
         case SCENE_STATS: return "STATS";
         case SCENE_QUIT: return "QUIT";
         default: return "UNKNOWN";
+    }
+}
+
+void app_togglePause(Application* app){
+    if(!app->isPaused){
+        app->isPaused = true;
+        app->pauseStartTime = SDL_GetTicks();
+        printf("[INFO] Pausa: ON\n");
+    } else {
+        app->isPaused = false;
+        Uint32 pausedMs = SDL_GetTicks() - app->pauseStartTime;
+        app->sceneStartTime += pausedMs; //Compensa el timer de escena
+        printf("[INFO] Pausa: OFF (compensados %u ms)\n", pausedMs);
     }
 }
 
@@ -135,10 +236,19 @@ void app_run(SDL_Renderer* renderer){
         .renderer = renderer,
         .currentScene = SCENE_SPLASH,
         .isRunning = true,
-        .sceneStartTime = SDL_GetTicks()
+        .sceneStartTime = SDL_GetTicks(),
+        .isPaused = false,
+        .pauseStartTime = 0
     };
 
     SDL_Event event;
+
+    /*--- Inicializacion de UI de pausa ---*/
+    if(pause_ui_init(&app)!=0){
+            /*No se aborta la app si falla el texto. El overlay seguira saliendo*/
+        fprintf(stderr,"[WARN] No se pudo preparar texto de pausa.\n");
+    }
+
 
 
     while(app.isRunning){
@@ -148,16 +258,22 @@ void app_run(SDL_Renderer* renderer){
             //Eventos globales
             if(event.type == SDL_QUIT)
                 app.isRunning = false;
-            if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
-                app.isRunning = false;
+            if(event.type == SDL_KEYDOWN){
+                if(event.key.keysym.sym == SDLK_ESCAPE)
+                    app.isRunning = false;
+                if(event.key.keysym.sym == SDLK_p)
+                    app_togglePause(&app);
+            }
 
-            //Eventos por escena
-            if(app.currentScene == SCENE_MENU)
+
+            //Eventos de escena si no esta en pausa
+            if(!app.isPaused && app.currentScene == SCENE_MENU)
                 handle_menu_events(&app,&event);
         }
 
         /*--- 2. Actualizacion ---*/
-        switch(app.currentScene){
+        if(!app.isPaused){
+         switch(app.currentScene){
             case SCENE_SPLASH: update_splash(&app);
             break;
             case SCENE_GAME: update_game(&app);
@@ -165,7 +281,9 @@ void app_run(SDL_Renderer* renderer){
             case SCENE_STATS: update_stats(&app);
             break;
             default: break;
+            }
         }
+
 
         /*--- 3. Renderizado ---*/
         switch(app.currentScene){
@@ -182,8 +300,16 @@ void app_run(SDL_Renderer* renderer){
             default: break;
         }
 
+        //overlay de pausa
+        if(app.isPaused){
+            render_pause_overlay(&app);
+            SDL_RenderPresent(app.renderer);
+        }
+
         SDL_Delay(16);
     }
+    /*Liberar recursos de UI pausa*/
+    pause_ui_shutdown();
 }
 
 
