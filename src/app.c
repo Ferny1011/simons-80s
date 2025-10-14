@@ -26,6 +26,8 @@
 
 #include "../include/app.h"
 #include "../include/renderer.h"
+#include "../include/audio.h"
+#include "../include/input.h"
 #include <stdio.h>
 
 static TTF_Font* gUiFont = NULL; /*fuente de UI*/
@@ -35,6 +37,11 @@ static SDL_Rect gPauseDst = {0, 0, 0, 0}; /*destino centrado*/
 
 static EqRenderer eqRendererState; /*Estructura del renderer(barras, layout,etc)*/
 static bool isEqInitialized = false; /*Se inicializa una sola vez en GAME*/
+
+static AudioSystem gameAudioSystem;
+static bool isAudioInitialized = false;
+
+static InputController inputController;
 
 /**
 *@brief Carga la fuente y prepara la textura "PAUSA"
@@ -228,7 +235,7 @@ void app_togglePause(Application* app){
 
 
 void app_changeScene(Application* app, Scene newScene){
-    printf("[INFO] Cambiando escena: %s -> %s\n",scene_name(app->currentScene), scene_name(newScene));
+    printf("[INFO] Cambiando escena: %s -> %s.\n",scene_name(app->currentScene), scene_name(newScene));
     app->currentScene = newScene;
     app->sceneStartTime = SDL_GetTicks();
 }
@@ -260,14 +267,20 @@ void app_run(SDL_Renderer* renderer){
         /*--- 1. Manejo de eventos ---*/
         while(SDL_PollEvent(&event)){
             //Eventos globales
+
+            /*Cerrar aplicacion (Boton X)*/
             if(event.type == SDL_QUIT)
                 app.isRunning = false;
+
+            /*Teclas globales*/
             if(event.type == SDL_KEYDOWN){
                 if(event.key.keysym.sym == SDLK_ESCAPE)
                     app.isRunning = false;
                 if(event.key.keysym.sym == SDLK_p)
                     app_togglePause(&app);
             }
+
+            /*Evento de redimensionado (Actualiza el layout del ecualizador)*/
             if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
                 /*Actualiza dimensiones y recalcula layout del ecualizador si ya estaba inciado*/
                 if(isEqInitialized){
@@ -276,23 +289,31 @@ void app_run(SDL_Renderer* renderer){
                 }
             }
 
-            /*si estamos en GAME y NO estamos en pausa*/
-            if(!app.isPaused && app.currentScene == SCENE_GAME){
-                if(event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT){
-                    int mouseX = event.button.x;
-                    int mouseY = event.button.y;
-                    if(isEqInitialized){
-                        int hitIndex = eq_detectHit(&eqRendererState, mouseX, mouseY);
-                        if(hitIndex >= 0){
-                            eq_triggerPulse(&eqRendererState, hitIndex);
-                        }
-                    }
-                }
+           //Eventos por escena(si no esta en pausa)
+           if(!app.isPaused){
+            /*MENU: control propio*/
+            if(app.currentScene == SCENE_MENU){
+                handle_menu_events(&app,&event);
             }
 
-            //Eventos de escena si no esta en pausa
-            if(!app.isPaused && app.currentScene == SCENE_MENU)
-                handle_menu_events(&app,&event);
+            /*GAME: clic/ teclado (pulso visual + tono 8-bit*/
+            if(app.currentScene == SCENE_GAME){
+                int barPressed = input_process_event(
+                    &inputController,
+                    &event,
+                    false, //isPaused
+                    true, //isGameScene
+                    (inputHitTestFn)eq_detectHit,
+                    (const void*)&eqRendererState
+                );
+                if(barPressed >=0){
+                    if(isEqInitialized)
+                        eq_triggerPulse(&eqRendererState,barPressed);
+                    if(isAudioInitialized)
+                        audio_playTone(&gameAudioSystem,barPressed);
+                }
+            }
+           }
         }
 
         /*--- 2. Actualizacion ---*/
@@ -334,6 +355,10 @@ void app_run(SDL_Renderer* renderer){
     }
     /*Liberar recursos de UI pausa*/
     pause_ui_shutdown();
+    if(isAudioInitialized){
+        audio_shutdown(&gameAudioSystem);
+        isAudioInitialized = false;
+    }
 }
 
 
@@ -368,10 +393,23 @@ static void update_game(Application* app){
     if(!isEqInitialized){
         isEqInitialized = eq_init(app->renderer, &eqRendererState,4);
         if(isEqInitialized){
-            /*Golpecito de presentacion en todas las barras*/
+            /*Inicializar el sistema de audio 8-bit*/
+            if(!isAudioInitialized){
+                isAudioInitialized = audio_init(&gameAudioSystem,4,11025,110);
+                if(isAudioInitialized){
+                    //prueba temporal: elegir perfil de audio 8-bit
+                    audio_setProfile(&gameAudioSystem,AUDIO_PROFILE_C64_PULSE);
+                    printf("[DEBUG]Perfil de audio activo: ARCADE\n");
+                }
+            }
+            /*Pulso de presentacion (visual + sonora)*/
             for(int barIndex = 0; barIndex < eqRendererState.totalBars; ++barIndex){
                 eq_triggerPulse(&eqRendererState, barIndex);
+                if(isAudioInitialized){
+                    audio_playTone(&gameAudioSystem,barIndex);
+                }
             }
+            printf("[INFO] SCENE_GAME inicializada: ecualizador y audio cargados.\n");
         }
     } else{
         /*Anima: aplica decaimineto de altura y brillo en cada frame*/
@@ -380,7 +418,7 @@ static void update_game(Application* app){
 
     /*Temporal de flujo (tras 2s salta a STATS)*/
     Uint32 elapsed = SDL_GetTicks() - app->sceneStartTime;
-    if(elapsed > 2000)
+    if(elapsed > 20000)
         app_changeScene(app,SCENE_STATS);
 }
 
