@@ -28,6 +28,7 @@
 #include "../include/renderer.h"
 #include "../include/audio.h"
 #include "../include/input.h"
+#include "../include/menu.h"
 #include <stdio.h>
 
 static TTF_Font* gUiFont = NULL; /*fuente de UI*/
@@ -115,7 +116,7 @@ static void render_splash(Application* app);
 *@param event Evento capturado por SDL
 */
 
-static void handle_menu_events(Application* app, SDL_Event* event);
+// static void handle_menu_events(Application* app, SDL_Event* event);
 
 
 /**
@@ -123,7 +124,7 @@ static void handle_menu_events(Application* app, SDL_Event* event);
 *@param app Puntero a la aplicacion principal
 */
 
-static void render_menu(Application* app);
+// static void render_menu(Application* app);
 
 
 /**
@@ -233,14 +234,43 @@ void app_togglePause(Application* app){
     }
 }
 
+/**
+ * @brief Cambia la escena actual y reinicia el timer
+ */
 
 void app_changeScene(Application* app, Scene newScene){
     printf("[INFO] Cambiando escena: %s -> %s.\n",scene_name(app->currentScene), scene_name(newScene));
     app->currentScene = newScene;
     app->sceneStartTime = SDL_GetTicks();
+
+    if (newScene == SCENE_MENU) {
+        config_menu_init(&app->configMenu, &app->gameConfig, app->uiFont);
+    }
+
+    // Reinicializar el juego cuando se entra
+    if (newScene == SCENE_GAME){
+        isEqInitialized = false;
+        if (isAudioInitialized){
+            audio_shutdown(&gameAudioSystem);
+            isAudioInitialized = false;
+        }
+        printf("Reinicializando juego con %d notas, duración %d ms\n", app->gameConfig.noteCount, app->gameConfig.noteDuration);
+    }
 }
 
+/**
+ * @brief Renderiza la escena de menú
+ */
 
+/*
+static void render_menu(Application* app){
+    config_menu_render(&app->configMenu, app->renderer);
+}
+*/
+
+/**
+ * @brief Ejecuta el bucle principal de la aplicación
+ */
 
 void app_run(SDL_Renderer* renderer){
     Application app = {
@@ -251,6 +281,15 @@ void app_run(SDL_Renderer* renderer){
         .isPaused = false,
         .pauseStartTime = 0
     };
+
+    // Inicializar configuración
+    config_init(&app.gameConfig);
+
+    // Cargar fuente UI
+    app.uiFont = TTF_OpenFont(FONT_UI_PATH, 24);
+    if (!app.uiFont){
+        fprintf(stderr, "No se pudo cargar la fuente UI: %s\n", TTF_GetError());
+    }
 
     SDL_Event event;
 
@@ -278,6 +317,10 @@ void app_run(SDL_Renderer* renderer){
                     app.isRunning = false;
                 if(event.key.keysym.sym == SDLK_p)
                     app_togglePause(&app);
+                if(event.key.keysym.sym == SDLK_m && !app.isPaused){
+                    app_changeScene(&app, SCENE_MENU);
+                    printf("[INFO] Abriendo menú de configuración con tecla 'M'");
+                }
             }
 
             /*Evento de redimensionado (Actualiza el layout del ecualizador)*/
@@ -293,7 +336,12 @@ void app_run(SDL_Renderer* renderer){
            if(!app.isPaused){
             /*MENU: control propio*/
             if(app.currentScene == SCENE_MENU){
-                handle_menu_events(&app,&event);
+                bool shouldChangeScene = false;
+                int newScene = 0;
+                config_menu_handle_event(&app.configMenu, &event, &shouldChangeScene, &newScene);
+                if (shouldChangeScene){
+                    app_changeScene(&app, (Scene)newScene);
+                }
             }
 
             /*GAME: clic/ teclado (pulso visual + tono 8-bit*/
@@ -321,6 +369,8 @@ void app_run(SDL_Renderer* renderer){
          switch(app.currentScene){
             case SCENE_SPLASH: update_splash(&app);
             break;
+            case SCENE_MENU:
+            break;
             case SCENE_GAME: update_game(&app);
             break;
             case SCENE_STATS: update_stats(&app);
@@ -334,7 +384,7 @@ void app_run(SDL_Renderer* renderer){
         switch(app.currentScene){
             case SCENE_SPLASH: render_splash(&app);
             break;
-            case SCENE_MENU: render_menu(&app);
+            case SCENE_MENU: config_menu_render(&app.configMenu, app.renderer);
             break;
             case SCENE_GAME: render_game(&app);
             break;
@@ -376,30 +426,35 @@ static void render_splash(Application* app){
     SDL_RenderPresent(app->renderer);
 }
 
+/*
 static void handle_menu_events(Application* app, SDL_Event* event){
     if(event->type == SDL_KEYDOWN)
         app_changeScene(app,SCENE_GAME);
 }
+*/
 
+/*
 static void render_menu(Application* app){
     SDL_SetRenderDrawColor(app->renderer, COLOR_MENU);
     SDL_RenderClear(app->renderer);
     //TODO: Dibujar opciones
     SDL_RenderPresent(app->renderer);
 }
+*/
 
 static void update_game(Application* app){
     /*Inicializacion del ecualizador (solo la primera vez que entramos a GAME)*/
     if(!isEqInitialized){
-        isEqInitialized = eq_init(app->renderer, &eqRendererState,4);
+        isEqInitialized = eq_init(app->renderer, &eqRendererState, app->gameConfig.noteCount);
         if(isEqInitialized){
             /*Inicializar el sistema de audio 8-bit*/
             if(!isAudioInitialized){
-                isAudioInitialized = audio_init(&gameAudioSystem,4,11025,110);
+                isAudioInitialized = audio_init(&gameAudioSystem, app->gameConfig.noteCount, 11025, app->gameConfig.noteDuration);
                 if(isAudioInitialized){
                     //prueba temporal: elegir perfil de audio 8-bit
                     audio_setProfile(&gameAudioSystem,AUDIO_PROFILE_C64_PULSE);
                     printf("[DEBUG]Perfil de audio activo: ARCADE\n");
+                    audio_setNoteDuration(&gameAudioSystem, app->gameConfig.noteDuration);
                 }
             }
             /*Pulso de presentacion (visual + sonora)*/
