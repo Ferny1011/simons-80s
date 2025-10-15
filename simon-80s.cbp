@@ -52,11 +52,19 @@
 		</Compiler>
 		<Unit filename="include/app.h" />
 		<Unit filename="include/audio.h" />
+		<Unit filename="include/config.h" />
+		<Unit filename="include/input.h" />
 		<Unit filename="include/renderer.h" />
 		<Unit filename="src/app.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/audio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/config.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/input.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/main.c">

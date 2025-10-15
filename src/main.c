@@ -14,9 +14,18 @@
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
 #include "../include/app.h"
+#include "../include/config.h"
 #undef main
 
 int main(int argc, char* argv[]) {
+
+    Config cfg;
+    if(cargarConfig(&cfg) < 0)
+    {
+        /* primera ejecución se crea un config default */
+        guardarConfig(&cfg);
+    }
+
     /*--- 1. Inicializacion de SDL y modulos ---*/
     if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)!=0){
         fprintf(stderr, "[ERROR] SDL_Init: %s\n",SDL_GetError());
@@ -67,7 +76,7 @@ int main(int argc, char* argv[]) {
 
     /*--- 3. Ejecucion del bucle principal de la aplicacion ---*/
     app_run(renderer);
-
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Saludos", "Gracias por jugar",NULL);
     /*--- 4. Liberacion de recursos y cierre ---*/
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

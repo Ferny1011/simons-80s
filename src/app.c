@@ -361,8 +361,6 @@ void app_run(SDL_Renderer* renderer){
     }
 }
 
-
-
 static void update_splash(Application* app){
     Uint32 elapsed = SDL_GetTicks() - app->sceneStartTime;
     if(elapsed > 1200)
