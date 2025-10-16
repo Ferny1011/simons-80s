@@ -197,13 +197,13 @@ bool audio_setNoteDuration(AudioSystem* audio, int baseDurationMs) {
 *@param profile perfil seleccionado
 */
 static void apply_profile_defults(AudioSystem* audio, AudioProfile profile){
-    int suggestedDur = audio->toneDurationMs;
+    // int suggestedDur = audio->toneDurationMs;
     int userBaseDuration = audio->toneDurationMs;
 
     switch (profile)
     {
     case AUDIO_PROFILE_CLASSIC_ARCADE:
-        suggestedDur = 110;
+        // suggestedDur = 110;
         {
             float f[8] = {392.0f,523.25f,659.25f,784.0f,880.0f,987.77f,1046.5f,1318.5f};
             float d[8] = {0.25f,0.25f,0.50f,0.25f,0.25f,0.50f,0.25f,0.50f};
@@ -214,7 +214,7 @@ static void apply_profile_defults(AudioSystem* audio, AudioProfile profile){
         break;
 
     case AUDIO_PROFILE_NES_PULSE:
-        suggestedDur = 100;
+        // suggestedDur = 100;
         {
             float f[8] = {440.0f,523.25f,659.25f,880.0f,1046.5f,1318.5f,1568.0f,1760.0f};
             float d[8] = {0.125f,0.25f,0.50f,0.125f,0.25f,0.50f,0.125f,0.25f};
@@ -225,7 +225,7 @@ static void apply_profile_defults(AudioSystem* audio, AudioProfile profile){
         break;
 
     case AUDIO_PROFILE_GAMEBOY:
-        suggestedDur = 90;
+        // suggestedDur = 90;
         {
             float f[8] = {392.0f,494.0f,587.3f,784.0f,880.0f,988.0f,1174.7f,1318.5f};
             float d[8] = {0.125f,0.25f,0.125f,0.25f,0.125f,0.25f,0.125f,0.25f};
@@ -236,7 +236,7 @@ static void apply_profile_defults(AudioSystem* audio, AudioProfile profile){
         break;
 
     case AUDIO_PROFILE_C64_PULSE:
-        suggestedDur = 120;
+        // suggestedDur = 120;
         {
             float f[8] = {330.0f,392.0f,494.0f,659.25f,784.0f,987.77f,1046.5f,1318.5f};
             float d[8] = {0.25f,0.50f,0.25f,0.50f,0.25f,0.50f,0.25f,0.50f};
@@ -247,7 +247,7 @@ static void apply_profile_defults(AudioSystem* audio, AudioProfile profile){
         break;
 
     case AUDIO_PROFILE_PC_SPEAKER:
-        suggestedDur = 100;
+        // suggestedDur = 100;
         {
             float f[8] = {400.0f,500.0f,650.0f,800.0f,900.0f,1000.0f,1200.0f,1400.0f};
             float d[8] = {0.50f,0.50f,0.50f,0.50f,0.50f,0.50f,0.50f,0.50f};
