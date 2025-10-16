@@ -151,6 +151,45 @@ static bool regenerate_tones(AudioSystem* audio){
     return true;
 }
 
+/**
+ * @brief Actualiza la duración base y aplica el algoritmo de escalado progresivo
+ *
+ * Implementa el algoritmo donde cada nota adicional reduce la duración un 3%:
+ * - 1 nota: 100% de la duración base
+ * - 2 notas: 97% de la duración base
+ * - 3 notas: 94% de la duración base
+ * - etc.
+ *
+ * @param audio Sistema de audio activo
+ * @param baseDurationMs Nueva duración base en milisegundos
+ * @return true si se actualizó correctamente
+ */
+
+bool audio_setNoteDuration(AudioSystem* audio, int baseDurationMs) {
+    if (!audio || baseDurationMs < 2000 || baseDurationMs > 5000) {
+        return false;
+    }
+
+    // Aplicar algoritmo de escalado: cada nota adicional resta 3%
+    float scaleFactor = 1.0f - ((audio->toneCount - 1) * 0.03f);
+
+    // Asegurar que el factor no sea menor al 70% (máximo 10 notas teóricamente)
+    if (scaleFactor < 0.7f) {
+        scaleFactor = 0.7f;
+    }
+
+    // Calcular duración final escalada
+    int scaledDuration = (int)(baseDurationMs * scaleFactor);
+
+    printf("[AUDIO] Duración base: %d ms, Factor escala: %.2f, Duración final: %d ms (%d notas)\n",
+           baseDurationMs, scaleFactor, scaledDuration, audio->toneCount);
+
+    // Actualizar duración del sistema
+    audio->toneDurationMs = scaledDuration;
+
+    // Regenerar todos los tonos con la nueva duración
+    return regenerate_tones(audio);
+}
 
 /**
 *@brief Carga los parametros de frecuencia/duty/slide segun el perfil activo
@@ -159,6 +198,7 @@ static bool regenerate_tones(AudioSystem* audio){
 */
 static void apply_profile_defults(AudioSystem* audio, AudioProfile profile){
     int suggestedDur = audio->toneDurationMs;
+    int userBaseDuration = audio->toneDurationMs;
 
     switch (profile)
     {
@@ -218,7 +258,7 @@ static void apply_profile_defults(AudioSystem* audio, AudioProfile profile){
         break;
     }
 
-    audio->toneDurationMs = suggestedDur;
+    audio->toneDurationMs = userBaseDuration;
 }
 
 

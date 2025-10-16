@@ -80,4 +80,9 @@ bool audio_setProfile(AudioSystem* audio, AudioProfile profile);
 */
 void audio_shutdown(AudioSystem* audio);
 
+/**
+*@brief Escala la duración de las notas segun la cantidad de las mismas
+*/
+bool audio_setNoteDuration(AudioSystem* audio, int newDurationMs);
+
 #endif // AUDIO_H_INCLUDED

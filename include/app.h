@@ -27,6 +27,7 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <stdbool.h>
+#include "menu.h"
 
 /**
 *@def COLOR_SPLASH
@@ -104,6 +105,9 @@ typedef struct {
     bool isPaused; // Control de la pausa
     Uint32 pauseStartTime; // Tiempo de inicio de la pausa (ms)
     Uint32 sceneStartTime; // Tiempo de inicio de la escena (ms)
+    GameConfig gameConfig;
+    ConfigMenu configMenu;
+    TTF_Font* uiFont;
 } Application;
 
 
