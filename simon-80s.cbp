@@ -52,6 +52,8 @@
 		</Compiler>
 		<Unit filename="include/app.h" />
 		<Unit filename="include/audio.h" />
+		<Unit filename="include/input.h" />
+		<Unit filename="include/menu.h" />
 		<Unit filename="include/renderer.h" />
 		<Unit filename="src/app.c">
 			<Option compilerVar="CC" />
@@ -59,7 +61,13 @@
 		<Unit filename="src/audio.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/input.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/menu.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/renderer.c">
